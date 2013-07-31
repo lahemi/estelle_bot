@@ -30,6 +30,8 @@ s:send("JOIN " .. channel .. carfeed)
 
 local msg = function(s, channel, content)
     s:send("PRIVMSG " .. channel .. " :" .. content .. carfeed)
+    -- For logging.
+    print(content)
 end
 
 local process = function(s, channel, lnick, line)
@@ -65,6 +67,16 @@ local process = function(s, channel, lnick, line)
         local apilink = apibase .. line:gsub("^!api ", "")
         msg(s, channel, apilink)
     end
+    if line:find("^!fortune") then
+        local fh = io.popen("./fortunes_alone.awk")
+        if not fh then
+            msg(s, channel, "Sadness happened.")
+        else
+            local stuff = fh:read('*a')
+            fh:close()
+            msg(s, channel, stuff)
+        end
+    end 
 end
 
 -- Parse input and handle ping.
