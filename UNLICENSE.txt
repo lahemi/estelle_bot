@@ -1,0 +1,11 @@
+This source code is placed in the public domain. No claim of copyright
+is made on any part of the source code. In effect, anyone is allowed to
+legally do anything they want with this source code. Should you know the
+original author or authors, they will very likely be interested to know
+if you have found this source code useful or if you have improved it.
+
+As inspired by SQLite, this source code offers a blessing:
+
+    May you do good and not evil.
+    May you find forgiveness for yourself and forgive others.
+    May you share freely, never taking more than you give.
