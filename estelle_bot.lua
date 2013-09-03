@@ -31,7 +31,8 @@ s:send("USER " .. nick .. "  " .. nick .. " " .. nick .. " :" .. nick .. carfeed
 s:send("NICK " .. nick .. carfeed)
 s:send("JOIN " .. channel .. carfeed)
 
-local msg = function(s, channel, content)
+-- Works for single channel bot.
+local msg = function(content)
     s:send("PRIVMSG " .. channel .. " :" .. content .. carfeed)
     -- For logging.
     print(content)
@@ -66,7 +67,7 @@ local estellehelp = table.concat{"List of functions: ",
                                  " | See !help <func_name> for more."}
 local apihelp     = "!api <func_name> | Link to corresponding Lua reference docs."
 local tinifyhelp  = "!tinify <url> | Print tinyurl."
-local fortunehelp = "!fortune | Spout a short wisdom. Limited supplied for the time being."
+local fortunehelp = "!fortune | Spout a short wisdom. Limited supply for the time being."
 -- For matching a url, we don't want to waste our time with
 -- links to images; no html, no title -> no need to check for it.
 local skip = function(line)
@@ -83,23 +84,23 @@ local process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
     if line:find("^!help") then
         if line:match("^!help$") then
-            msg(s, channel, estellehelp)
+            msg(estellehelp)
         elseif line:match("^!help !?tinify$") then
-            msg(s, channel, tinifyhelp)
+            msg(tinifyhelp)
         elseif line:match("^!help !?api$") then
-            msg(s, channel, apihelp)
+            msg(apihelp)
         elseif line:match("^!help !?fortune$") then
-            msg(s, channel, fortunehelp)
+            msg(fortunehelp)
         elseif line:match("^!help awk$") then
-            msg(s, channel, lnick .. ': ' .. awkhelp)
+            msg(lnick..': '..awkhelp)
         elseif line:match("^!help awk.+$") then
             local pat = line:gsub("^!help awk ","")
             local helpfun = awkpicker(pat)
-            msg(s, channel, lnick .. ': ' .. helpfun)
+            msg(lnick .. ': ' .. helpfun)
         elseif line:match("^!help bash$") then
-            msg(s, channel, lnick .. ': ' .. bashhelp)
+            msg(lnick .. ': ' .. bashhelp)
         else
-            msg(s, channel, lnick .. ': Have you tried to RTFM? :)')
+            msg(lnick .. ': Have you tried to RTFM? :)')
         end
     elseif line:find("^https?://") then
         local page = ""
@@ -112,7 +113,7 @@ local process = function(s, channel, lnick, line)
         end
         if page == "skip" then
         elseif page == nil then
-            msg(s, channel, "Something might've gone awry.")
+            msg("Something might've gone awry.")
         else
             local page = page:match("<title>%w.-</title>") or
                          page:match("<TITLE>%w.-</TITLE>")
@@ -122,34 +123,34 @@ local process = function(s, channel, lnick, line)
             else
                 page = page:gsub("<(.-)>", "")
             end
-            msg(s, channel, page)
+            msg(page)
         end
         if #line > 80 then
             local tin = ""
             local tin = http.request("http://tinyurl.com/api-create.php?url=" .. line)
-            msg(s,channel,tin)
+            msg(tin)
         end
     elseif line:find("^!tinify") then
         local tinyurl = ""
         local tinyarg = line:gsub("^!tinify ", "")
         local tinyurl = http.request("http://tinyurl.com/api-create.php?url=" .. tinyarg)
         if tinyurl == nil then
-            msg(s, channel, "Something might've gone terribly wrong.")
+            msg("Something might've gone terribly wrong.")
         else
-            msg(s, channel, tinyurl)
+            msg(tinyurl)
         end
     elseif line:find("^!api") then
         local apibase = "http://www.lua.org/manual/5.1/manual.html#pdf-"
         local apilink = apibase .. line:gsub("^!api ", "")
-        msg(s, channel, apilink)
+        msg(apilink)
     elseif line:find("^!fortune") then
         local fh = io.popen("./fortunes_alone.awk")
         if not fh then
-            msg(s, channel, "Sadness happened.")
+            msg("Sadness happened.")
         else
             local stuff = fh:read('*a')
             fh:close()
-            msg(s, channel, stuff)
+            msg(stuff)
         end
     end 
 end
