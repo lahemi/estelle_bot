@@ -58,15 +58,39 @@ local awkpicker = function(name)
         end
     end
 end
-
 local bashhelp = table.concat{"man bash; ",
                               "http://wiki.bash-hackers.org/start; ",
                               "http://mywiki.wooledge.org/BashGuide"}
+local estellehelp = table.concat{"List of functions: ",
+                                 "!help, !tinify, !api, !fortune",
+                                 " | See !help <func_name> for more."}
+local apihelp     = "!api <func_name> | Link to corresponding Lua reference docs."
+local tinifyhelp  = "!tinify <url> | Print tinyurl."
+local fortunehelp = "!fortune | Spout a short wisdom. Limited supplied for the time being."
+-- For matching a url, we don't want to waste our time with
+-- links to images; no html, no title -> no need to check for it.
+local skip = function(line)
+    local ret = ""
+    if line:match(".+%.jpg$") or
+       line:match(".+%.jpeg$") or
+       line:match(".+%.png$") or
+       line:match(".+%.gif$") then ret = "skip"
+    else ret = http.request(line) end
+    return ret
+end
 
 local process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
     if line:find("^!help") then
-        if line:match("^!help awk$") then
+        if line:match("^!help$") then
+            msg(s, channel, estellehelp)
+        elseif line:match("^!help !?tinify$") then
+            msg(s, channel, tinifyhelp)
+        elseif line:match("^!help !?api$") then
+            msg(s, channel, apihelp)
+        elseif line:match("^!help !?fortune$") then
+            msg(s, channel, fortunehelp)
+        elseif line:match("^!help awk$") then
             msg(s, channel, lnick .. ': ' .. awkhelp)
         elseif line:match("^!help awk.+$") then
             local pat = line:gsub("^!help awk ","")
@@ -77,24 +101,35 @@ local process = function(s, channel, lnick, line)
         else
             msg(s, channel, lnick .. ': Have you tried to RTFM? :)')
         end
-    end
-    if line:find("^https?://") then
+    elseif line:find("^https?://") then
         local page = ""
+        -- In case any text follows the url.
         if line:find("%s") then
             line = line:match(".-%s"):gsub("%s","")
-            page = http.request(line)
+            page = skip(line)
         else
-            page = http.request(line)
+            page = skip(line)
         end
-        if page == nil then
+        if page == "skip" then
+        elseif page == nil then
             msg(s, channel, "Something might've gone awry.")
         else
-            local step = page:match("<title>%w.-</title>")
-                             :gsub("<(.-)>", "")
-            msg(s, channel, step)
+            local page = page:match("<title>%w.-</title>") or
+                         page:match("<TITLE>%w.-</TITLE>")
+            -- Some necessary error handling.
+            if page == nil then
+                page = "Something funny up with the title."
+            else
+                page = page:gsub("<(.-)>", "")
+            end
+            msg(s, channel, page)
         end
-    end
-    if line:find("^!tinify") then
+        if #line > 80 then
+            local tin = ""
+            local tin = http.request("http://tinyurl.com/api-create.php?url=" .. line)
+            msg(s,channel,tin)
+        end
+    elseif line:find("^!tinify") then
         local tinyurl = ""
         local tinyarg = line:gsub("^!tinify ", "")
         local tinyurl = http.request("http://tinyurl.com/api-create.php?url=" .. tinyarg)
@@ -103,13 +138,11 @@ local process = function(s, channel, lnick, line)
         else
             msg(s, channel, tinyurl)
         end
-    end
-    if line:find("^!api") then
+    elseif line:find("^!api") then
         local apibase = "http://www.lua.org/manual/5.1/manual.html#pdf-"
         local apilink = apibase .. line:gsub("^!api ", "")
         msg(s, channel, apilink)
-    end
-    if line:find("^!fortune") then
+    elseif line:find("^!fortune") then
         local fh = io.popen("./fortunes_alone.awk")
         if not fh then
             msg(s, channel, "Sadness happened.")
