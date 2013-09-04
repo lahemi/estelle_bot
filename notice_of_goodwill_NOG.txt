@@ -1,6 +1,6 @@
 The Notice Of Goodwill (NOG)
 
-Year: <year> Author: <names> 
+Year: 2013 Author: Lauri Peltomäki
 
 The software is provided "as is", without any kind of warranty.
 
