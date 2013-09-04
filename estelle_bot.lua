@@ -1,7 +1,7 @@
 #!/usr/bin/env lua5.1
 -- A much simple barebones IRC bot in Lua, its very simplicity
 -- being its main virtue. Peruse and extend at your leisure.
--- See UNLICENSE.txt for exact wording of the blessings.
+-- See the Notice of Goodwill for "licensing".
 
 -- Our "environment".
 local socket = require("socket")

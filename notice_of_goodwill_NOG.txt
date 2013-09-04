@@ -1,0 +1,16 @@
+The Notice Of Goodwill (NOG)
+
+Year: <year> Author: <names> 
+
+The software is provided "as is", without any kind of warranty.
+
+Anyone is free to do anything they wish with this software for any
+purpose they may want to restricted only by their own judgement.
+
+You are not required to credit the original authors nor to preserve
+this notice, although this would exhibit good manners. Should you
+have found the software useful or have improved upon it, the
+original authors would likely be interested to hear about it.
+
+"Given the choice, people tend to choose the right path.
+The important thing is to give people this choice."
