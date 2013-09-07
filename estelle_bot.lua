@@ -1,7 +1,7 @@
 #!/usr/bin/env lua5.1
 -- A much simple barebones IRC bot in Lua, its very simplicity
 -- being its main virtue. Peruse and extend at your leisure.
--- See the Notice of Goodwill for "licensing".
+-- See UNLICENSE.txt for exact wording of the blessings.
 
 -- Our "environment".
 local socket = require("socket")
@@ -11,6 +11,7 @@ local string = { sub    = string.sub,
                  gsub   = string.gsub,
                  find   = string.find,
                  lower  = string.lower,
+                 upper  = string.upper,
                  match  = string.match,
                  gmatch = string.gmatch }
 local print = print
@@ -47,10 +48,9 @@ local awkhelp = table.concat{"man awk; ","man gawk; ",
                              "http://awk.freeshell.org/; ","http://awk.info; ",
                              "http://www.gnu.org/software/gawk/manual/"}
 -- We have our custom "manpage", with shorter entries and less dribble.
-local awkdocs = "estelledocs_awk_funcs.txt"
 local awkpicker = function(name)
     local name = string.lower(name)
-    local fh = io.open(awkdocs)
+    local fh = io.open("estelledocs_awk_funcs.txt")
     local rd = fh:read('*a')
     fh:close()
     for line in rd:gmatch("[^\n]+") do
@@ -59,6 +59,21 @@ local awkpicker = function(name)
         end
     end
 end
+-- If programming languages were religions.
+local relpicker = function(pat)
+    local pat = string.upper(pat)
+    -- C++ is so special
+    if pat == "C++" then pat = "C%+%+" end
+    local fh = io.open("religion.txt")
+    local rd = fh:read('*a')
+    fh:close()
+    for line in rd:gmatch("[^\n]+") do
+        if line:match("^"..pat.." ") then
+            return line
+        end
+    end
+end
+
 local bashhelp = table.concat{"man bash; ",
                               "http://wiki.bash-hackers.org/start; ",
                               "http://mywiki.wooledge.org/BashGuide"}
@@ -96,11 +111,23 @@ local process = function(s, channel, lnick, line)
         elseif line:match("^!help awk.+$") then
             local pat = line:gsub("^!help awk ","")
             local helpfun = awkpicker(pat)
-            msg(lnick .. ': ' .. helpfun)
+            if helpfun == nil then
+                msg("No such entry.")
+            else
+                msg(lnick .. ': ' .. helpfun)
+            end
         elseif line:match("^!help bash$") then
             msg(lnick .. ': ' .. bashhelp)
         else
             msg(lnick .. ': Have you tried to RTFM? :)')
+        end
+    elseif line:find("^!religion") then
+        local pat = line:gsub("^!religion ","")
+        local rel = relpicker(pat)
+        if rel == nil then
+            msg("No such entry.")
+        else
+            msg(rel)
         end
     elseif line:find("^https?://") then
         local page = ""
