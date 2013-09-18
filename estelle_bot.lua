@@ -48,12 +48,28 @@ end
 local awkhelp = table.concat{"man awk; ","man gawk; ",
                              "http://awk.freeshell.org/; ","http://awk.info; ",
                              "http://www.gnu.org/software/gawk/manual/"}
+
+-- A sort of generic file reading helper
+-- function, with some "error handling".
+local filereadall = function(file)
+    local ret = ""
+    if not file then -- Magicks of empty if body.
+    else
+        local fh = io.open(file)
+        if not fh then
+            ret = "File handle not handled!"
+        else
+            ret = fh:read('*a')
+            fh:close()
+        end
+        return ret
+    end 
+end
+
 -- We have our custom "manpage", with shorter entries and less dribble.
 local awkpicker = function(name)
     local name = string.lower(name)
-    local fh = io.open("estelledocs_awk_funcs.txt")
-    local rd = fh:read('*a')
-    fh:close()
+    local rd = filereadall("estelledocs_awk_funcs.txt")
     for line in rd:gmatch("[^\n]+") do
         if line:match("^"..name) then
             return line
@@ -65,9 +81,7 @@ local relpicker = function(pat)
     local pat = string.upper(pat)
     -- C++ is so special.
     if pat == "C++" then pat = "C%+%+" end
-    local fh = io.open("religion.txt")
-    local rd = fh:read('*a')
-    fh:close()
+    local rd = filereadall("religion.txt")
     for line in rd:gmatch("[^\n]+") do
         if line:match("^"..pat.." ") then
             return line
@@ -101,30 +115,35 @@ end
 
 local process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
-    if line:find("^!help") then
+
+    if line:find("^![hH][eE][lL][pP]") then
+        local line = string.lower(line)
+
         if line:match("^!help$") then
             msg(estellehelp)
-        elseif line:match("^!help !?tinify$") then
-            msg(tinifyhelp)
-        elseif line:match("^!help !?api$") then
-            msg(apihelp)
-        elseif line:match("^!help !?fortune$") then
-            msg(fortunehelp)
-        elseif line:match("^!help awk$") then
-            msg(lnick..': '..awkhelp)
-        elseif line:match("^!help awk.+$") then
-            local pat = line:gsub("^!help awk ","")
+            return
+        end
+
+        local line = line:gsub("!help%s+","")
+
+        if     line:match("^!?tinify%s-$")  then msg(tinifyhelp)
+        elseif line:match("^!?api%s-$")     then msg(apihelp)
+        elseif line:match("^!?fortune%s-$") then msg(fortunehelp)
+        elseif line:match("^awk%s-$")       then msg(lnick..': '..awkhelp)
+        elseif line:match("^awk.+$") then
+            local pat = line:gsub("^awk ","")
             local helpfun = awkpicker(pat)
             if helpfun == nil then
                 msg("No such entry.")
             else
-                msg(lnick .. ': ' .. helpfun)
+                msg(helpfun)
             end
-        elseif line:match("^!help bash$") then
-            msg(lnick .. ': ' .. bashhelp)
+        elseif line:match("^bash%s-$") then
+            msg(bashhelp)
         else
             msg(lnick .. ': Have you tried to RTFM? :>')
         end
+
     elseif line:find("^!religion") then
         local pat = line:gsub("^!religion ","")
         local rel = relpicker(pat)
@@ -133,48 +152,53 @@ local process = function(s, channel, lnick, line)
         else
             msg(rel)
         end
-    elseif line:find("^https?://") then
+
+    -- Deliberately ignoring https.
+    elseif line:find("http://") then
         local page = ""
-        -- In case any text follows the url.
-        if line:find("%s") then
-            line = line:match(".-%s"):gsub("%s","")
-            page = skip(line)
+
+        if line:find("http://[%w%p]+%s") == nil then
+            local s,e = line:find("http://[%w%p]+")
+            local url = line:sub(s,e)
+            page = skip(url)
         else
-            page = skip(line)
+            local s,e = line:find("http://[%w%p]+%s")
+            local url = line:sub(s,(e-1))
+            page = skip(url)
         end
-        if page == "skip" then
+
+        if page == "skip" then  -- Empty if body !
         elseif page == nil then
             msg("Something might've gone awry.")
         else
-            local page = page:match("<title>%w.-</title>") or
-                         page:match("<TITLE>%w.-</TITLE>")
+            local title = page:match("<[tT][iI][tT][lL][eE]>.+</[tT][iI][tT][lL][eE]>")
             -- Some necessary error handling.
-            if page == nil then
-                page = "Something funny up with the title."
-            else
-                page = page:gsub("<(.-)>", "")
-            end
-            msg(page)
+            if title == nil then title = "The title was a lie."
+            else title = title:gsub("<(.-)>", "") end
+            msg(title)
         end
-        if #line > 80 then
+        if #url > 80 then
             local tin = ""
-            local tin = http.request("http://tinyurl.com/api-create.php?url=" .. line)
+            local tin = http.request("http://tinyurl.com/api-create.php?url="..url)
             msg(tin)
         end
+
     elseif line:find("^!tinify") then
         local tinyurl = ""
         local tinyarg = line:gsub("^!tinify ", "")
-        local tinyurl = http.request("http://tinyurl.com/api-create.php?url=" .. tinyarg)
+        local tinyurl = http.request("http://tinyurl.com/api-create.php?url="..tinyarg)
         if tinyurl == nil then
             msg("Something might've gone terribly wrong.")
         else
             msg(tinyurl)
         end
-    -- Incomplete, doens't test if unexistent search.
+        
+    -- Incomplete, doesn't test if a nonexistent search.
     elseif line:find("^!api") then
         local apibase = "http://www.lua.org/manual/5.1/manual.html#pdf-"
         local apilink = apibase .. line:gsub("^!api ", "")
         msg(apilink)
+
     elseif line:find("^!fortune") then
         local fh = io.popen("./fortunes_alone.awk")
         if not fh then
@@ -188,17 +212,13 @@ local process = function(s, channel, lnick, line)
 end
 
 local rtest = function(str, testpat, message, freq)
-    local freq = freq or 2  -- Two is actually rather rare!
+    local freq = freq or 64 -- One eight of 512.
     local ret = ""
     if string.find(str,testpat) then
-        if math.random(10) < freq then
+        if math.random(512) <= freq then    -- Adjust to your needs.
             ret = message
-        else
-            ret = "skip"
-        end
-    else
-        ret = "skip"
-    end
+        else ret = "skip" end
+    else ret = "skip" end
     if ret == "skip" then else msg(ret) end
 end
 
@@ -206,7 +226,6 @@ end
 local dospeak = function(line)
     local line = string.lower(line)
 
-    rtest(line, "party", "It's party time!")
 
     if line:find("linux") then
         if (line:find("gnu%+linux") or line:find("gnu/linux")) == nil then
@@ -214,22 +233,24 @@ local dospeak = function(line)
         end
     end
 
+    rtest(line, "party", "It's party time!")
+    rtest(line, "huzzah", "The fun has been doubled!")
     rtest(line, "good idea", "I totally agree with you! Not.")
-    rtest(line, "%slua%s", "I run on Lua! That's why I'm so hot I should be on fire!")
-    rtest(line, "%svim?%s", "Vi is just one of emacs's major modes!")
+    rtest(line, "%s-vim?%s-", "Vi is just one of emacs's major modes!")
     rtest(line, "lol", "Oh hai thur, Ceiling cat eatednings u an stuffs!")
+    rtest(line, "%s-lua%s-", "I run on Lua! That's why I'm so hot I should be on fire!")
 
-    -- "Speak randomly" infrequently.
+    -- "Speak randomly", infrequently.
     rtest(line, ".+", "I am participating!", 1)
     rtest(line, ".+", "Someday I will be a real person, too :<", 1)
     rtest(line, ".+", "Unacceptable!", 1)
 
-    -- Local finnish stuff, do ignore.
+    -- Local finnish stuff; do ignore.
     rtest(line, "bileet", "No. :<")
-    rtest(line, "hässäkkä", "Varmaan aika mones hässäkkä, et selkeästikään tiedä mitä teet.")
+    rtest(line, "hässäkkä", "Aika mones hässäkkä, et selkeästikään tiedä mitä teet.")
 end
 
--- Parse input and handle ping.
+-- Parse input and handle ping. The main loop.
 while true do
     local receive = s:receive('*l')
 
