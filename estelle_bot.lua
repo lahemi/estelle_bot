@@ -156,14 +156,15 @@ local process = function(s, channel, lnick, line)
     -- Deliberately ignoring https.
     elseif line:find("http://") then
         local page = ""
+        local url  = ""
 
         if line:find("http://[%w%p]+%s") == nil then
             local s,e = line:find("http://[%w%p]+")
-            local url = line:sub(s,e)
+            url = line:sub(s,e)
             page = skip(url)
         else
             local s,e = line:find("http://[%w%p]+%s")
-            local url = line:sub(s,(e-1))
+            url = line:sub(s,(e-1))
             page = skip(url)
         end
 
