@@ -17,6 +17,8 @@ local string = { sub    = string.sub,
 local math = { random = math.random }
 local print = print
 
+local lapi = require("lapi")
+
 estellefun = {}
 
 local overlord = ""
@@ -190,11 +192,22 @@ estellefun.process = function(s, channel, lnick, line)
             msg(tinyurl)
         end
         
-    -- TODO Incomplete, doesn't test if a nonexistent search.
+    -- Actually tests if the searched function exists!
     elseif line:find("^!api") then
+        local apimsg = ""
         local apibase = "http://www.lua.org/manual/5.1/manual.html#pdf-"
-        local apilink = apibase .. line:gsub("^!api ", "")
-        msg(apilink)
+        local apiarg = line:gsub("^!api ","")
+        -- Needed for checking that nil down there.
+        local apifun = function()
+                for i=1,#lapi.functions do
+                    if apiarg == lapi.functions[i] then
+                        return apibase .. apiarg
+                    end
+                end
+            end
+        local apimsg = apifun()
+        if apimsg == nil then apimsg = "No such entry." end
+        msg(apimsg)
 
     -- I was feeling awkward that day.
     elseif line:find("^!fortune") then
