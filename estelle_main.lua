@@ -23,10 +23,10 @@ local print = print
 local estellefun = require("estellefun")
 
 -- Configuration. Fill in as your heart desires.
-local overlord = "icelesstea" -- "superuser", you.
-local serv = "irc.freenode.net"
-local nick = "estelle_bot"
-local channel = "#jaska"
+local overlord = "" -- "superuser", you.
+local serv = ""
+local nick = ""
+local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
 -- Connect, so magical.

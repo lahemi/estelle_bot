@@ -19,7 +19,7 @@ local print = print
 
 estellefun = {}
 
-local overlord = "icelesstea"
+local overlord = ""
 local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
