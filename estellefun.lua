@@ -17,28 +17,13 @@ local string = { sub    = string.sub,
 local math = { random = math.random }
 local print = print
 
--- Configuration. Fill in as your heart desires.
-local overlord = "" -- "superuser", you.
-local serv = ""
-local nick = ""
+estellefun = {}
+
+local overlord = "icelesstea"
 local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
--- Connect, so magical.
-local s = socket.tcp()
-s:connect(socket.dns.toip(serv), 6667)
-
--- Initialization
-s:send("USER " .. nick .. "  " .. nick .. " " .. nick .. " :" .. nick .. carfeed)
-s:send("NICK " .. nick .. carfeed)
-s:send("JOIN " .. channel .. carfeed)
-
--- Works for single channel bot. Elaborate as necessary.
-local msg = function(content)
-    s:send("PRIVMSG " .. channel .. " :" .. content .. carfeed)
-    -- For logging.
-    print(content)
-end
+local silence = false
 
 -- A little trick for creating strings. var="stuff\ more stuff" C-stylish
 -- breaking of long strings doesn't work in Lua. One option would've been
@@ -98,23 +83,34 @@ local estellehelp = table.concat{"List of functions: ",
 local apihelp     = "!api <func_name> | Link to corresponding Lua reference docs."
 local tinifyhelp  = "!tinify <url> | Print tinyurl."
 local fortunehelp = "!fortune | Spout a short wisdom. Limited supply for the time being."
--- For matching a url, we don't want to waste our time with links to
+-- For matching a url; we don't want to waste our time with links to
 -- images and such; no html, no title -> no need to check for it.
 local skip = function(line)
     local line = string.lower(line)
     local ret = ""
-    if line:match(".+%.jpg$") or
-       line:match(".+%.jpeg$") or
-       line:match(".+%.png$") or
-       line:match(".+%.gif$") or
+    if line:match(".+%.jpg$")    or
+       line:match(".+%.jpeg$")   or
+       line:match(".+%.png$")    or
+       line:match(".+%.gif$")    or
        line:match(".+%.mp[34]$") or
        line:match(".+%.og[gv]$") then ret = "skip"
     else ret = http.request(line) end
     return ret
 end
 
-local process = function(s, channel, lnick, line)
+-- The main juices. Maybe a bit messy like.
+estellefun.process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
+    if line:find("^!silence") and lnick == overlod then
+        local set = line:gsub("^!silence ","")
+        if set:match("^on$") then
+            silence = true
+            return
+        elseif set:match("^off$") then
+            silence = false
+            return
+        end
+    end
 
     if line:find("^![hH][eE][lL][pP]") then
         local line = string.lower(line)
@@ -194,12 +190,13 @@ local process = function(s, channel, lnick, line)
             msg(tinyurl)
         end
         
-    -- Incomplete, doesn't test if a nonexistent search.
+    -- TODO Incomplete, doesn't test if a nonexistent search.
     elseif line:find("^!api") then
         local apibase = "http://www.lua.org/manual/5.1/manual.html#pdf-"
         local apilink = apibase .. line:gsub("^!api ", "")
         msg(apilink)
 
+    -- I was feeling awkward that day.
     elseif line:find("^!fortune") then
         local fh = io.popen("./fortunes_alone.awk")
         if not fh then
@@ -223,8 +220,9 @@ local rtest = function(str, testpat, message, freq)
     if ret == "skip" then else msg(ret) end
 end
 
--- So AI, right, sure.
-local dospeak = function(line)
+-- So AI, right, sure. Add a lot of stuff.
+-- Semi-dynamic sentence generation, logical structuring!
+estellefun.dospeak = function(line)
     local line = string.lower(line)
 
 
@@ -234,10 +232,12 @@ local dospeak = function(line)
         end
     end
 
+    rtest(line, "derp", "Muffins!")
     rtest(line, "party", "It's party time!")
     rtest(line, "huzzah", "The fun has been doubled!")
     rtest(line, "good idea", "I totally agree with you! Not.")
-    rtest(line, "%s-vim?%s-", "Vi is just one of emacs's major modes!")
+    rtest(line, "%s-vim%s-", "Vi is just one of emacs's major modes!")
+    rtest(line, "%s-vi%+", "Vi is just one of emacs's major modes!")
     rtest(line, "lol", "Oh hai thur, Ceiling cat eatednings u an stuffs!")
     rtest(line, "%s-lua%s-", "I run on Lua! That's why I'm so hot I should be on fire!")
 
@@ -251,30 +251,5 @@ local dospeak = function(line)
     rtest(line, "hässäkkä", "Aika mones hässäkkä, et selkeästikään tiedä mitä teet.")
 end
 
--- Parse input and handle ping. The main loop.
-while true do
-    local receive = s:receive('*l')
+return estellefun
 
-    -- Need to pong them to tell we're still alive.
-    if receive:find("PING :") then
-        s:send("PONG :" .. receive:sub((receive:find("PING :") + 6)) .. carfeed)
-    else
-        -- Parse
-        if receive:find("PRIVMSG") then
-            if receive:find(channel .. " :") then
-                line = receive:sub((receive:find(channel .. " :") + (#channel) + 2))
-            end
-            if receive:find(":") and receive:find("!") then
-                lnick = receive:sub((receive:find(":")+1),
-                                    (receive:find("!")-1))
-            end
-            -- The actual functionality.
-            if line then
-                process(s, channel, lnick, line)
-                dospeak(line)
-            end
-        end
-    end
-
-    print(receive)
-end
