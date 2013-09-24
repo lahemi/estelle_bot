@@ -6,6 +6,7 @@
 -- Our "environment".
 local socket = require("socket")
 local http   = require("socket.http")
+local ssl    = require("ssl")   -- from LuaSec
 local table  = { concat = table.concat }
 local string = { sub    = string.sub,
                  gsub   = string.gsub,
@@ -29,9 +30,22 @@ local nick = ""
 local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
--- Connect, so magical.
+
+-- For the ssl.
+local params = { 
+    mode = "client",
+    protocol = "sslv3",
+    cafile = "/etc/ssl/certs/ca-certificates.crt",
+    verify = "peer",
+    options = "all",
+}
 local s = socket.tcp()
-s:connect(socket.dns.toip(serv), 6667)
+-- Or just s:connect(socket.dns.toip(serv),6667)
+-- if don't want to use ssl. Of course remove
+-- ssl.wrap and dohandshake then too.
+s:connect(socket.dns.toip(serv), 6697)
+s = ssl.wrap(s,params)
+s:dohandshake()
 
 -- Initialization
 s:send("USER " .. nick .. "  " .. nick .. " " .. nick .. " :" .. nick .. carfeed)
