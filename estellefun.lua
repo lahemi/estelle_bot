@@ -3,10 +3,6 @@
 -- its main virtue. Peruse and extend at your leisure.
 -- See notice_of_goodwill_NOG.txt for exact wording of the blessings.
 
--- TODO meme generator. logical trees, and with a time limit:
--- allow a new meme to be generated once in a hour or so.
-
-
 -- Our "environment".
 local socket = require("socket")
 local http   = require("socket.http")
@@ -92,15 +88,16 @@ local fortunehelp = "!fortune | Spout a short wisdom. Limited supply for the tim
 -- For matching a url; we don't want to waste our time with links to
 -- images and such; no html, no title -> no need to check for it.
 local skip = function(line)
-    local line = string.lower(line)
+    local tl = string.lower(line)
     local ret = ""
-    if line:match(".+%.jpg$")    or
-       line:match(".+%.png$")    or
-       line:match(".+%.gif$")    or
-       line:match(".+%.pdf$")    or
-       line:match(".+%.jpeg$")   or
-       line:match(".+%.mp[34]$") or
-       line:match(".+%.og[gv]$") then ret = "skip"
+    if tl:match(".+%.jpg$")    or
+       tl:match(".+%.png$")    or
+       tl:match(".+%.gif$")    or
+       tl:match(".+%.pdf$")    or
+       tl:match(".+%.jpeg$")   or
+       tl:match(".+%.mp[34]$") or
+       tl:match(".+%.og[gv]$") then return nil
+    elseif line:find("^https") then return nil  -- Issue with http.request
     else ret = http.request(line) end
     return ret
 end
@@ -172,58 +169,34 @@ estellefun.process = function(s, channel, lnick, line)
             msg(rel)
         end
 
-    -- Deliberately ignoring https.
-    elseif line:find("http://") then
-        urlsaver(line)
-        local page = ""
-        local url  = ""
+    elseif line:find("https?://") then
+        local tp      = "[tT][iI][tT][lL][eE]>"
+        local tinyapi = "http://tinyurl.com/api-create.php?url="
 
-        if line:find("http://[%w%p]+%s") == nil then
-            local s,e = line:find("http://[%w%p]+")
-            url = line:sub(s,e)
-            page = skip(url)
-        else
-            local s,e = line:find("http://[%w%p]+%s")
-            url = line:sub(s,(e-1))
-            page = skip(url)
+        for word in line:gmatch("%S+") do
+            if word:match("https?://[%w%p]+") then
+                local page = skip(word) -- https is also skipped!
+                if page ~= nil then
+                    local title = page:match(table.concat{"<",tp,"(.-)","</",tp})
+                    if title then msg(title)
+                    else msg("The title was a lie.")
+                    end
+                end
+                if #word > 80 then
+                    local tiny = ""
+                    local tiny = http.request(tinyapi..word)
+                    if tiny then msg(tiny) end
+                end
+                -- We save all the posted links, for posterity.
+                local fh = io.open("linksdata.txt","a")
+                if fh then fh:write(word.."\n") end
+                fh:close()
+            end
         end
-
-        if page == "skip" then  -- Empty if body !
-        elseif page == nil then
-            msg("Something might've gone awry.")
-        else
-            local title = page:match("<[tT][iI][tT][lL][eE]>(.-)</[tT][iI][tT][lL][eE]>")
-            -- Some necessary error handling.
-            if title == nil then title = "The title was a lie."
-            else title = title:gsub("<(.-)>", "") end
-            -- Youtube sometimes fails for some reason. yey.
-            msg(title)
-        end
-        if #url > 80 then
-            local tin = ""
-            local tin = http.request("http://tinyurl.com/api-create.php?url="..url)
-            msg(tin)
-        end
-    elseif line:find("https://") then
-        urlsaver(line)
-        if line:find("https://[%w%p]+%s") == nil then
-            local s,e = line:find("https://[%w%p]+")
-            url = line:sub(s,e)
-        else
-            local s,e = line:find("https://[%w%p]+%s")
-            url = line:sub(s,(e-1))
-        end
-
-        if #url > 80 then
-            local tin = ""
-            local tin = http.request("http://tinyurl.com/api-create.php?url="..url)
-            if tin then msg(tin)
-        end
-    end
 
     elseif line:find("^!tinify") then
         local tinyurl = ""
-        local tinyarg = line:gsub("^!tinify ", "")
+        local tinyarg = line:gsub("^!tinify ","")
         local tinyurl = http.request("http://tinyurl.com/api-create.php?url="..tinyarg)
         if tinyurl == nil then
             msg("Something might've gone terribly wrong.")
@@ -258,9 +231,6 @@ estellefun.process = function(s, channel, lnick, line)
             fh:close()
             msg(stuff)
         end
-
-    elseif line:find("!judge") then
-        msg("Tuomitaan Ilkkaa kaikki, minä kanssa!!")
     end
 end
 
