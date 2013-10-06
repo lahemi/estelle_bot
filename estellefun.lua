@@ -3,6 +3,7 @@
 -- its main virtue. Peruse and extend at your leisure.
 -- See notice_of_goodwill_NOG.txt for exact wording of the blessings.
 
+
 -- Our "environment".
 local socket = require("socket")
 local http   = require("socket.http")
@@ -91,9 +92,10 @@ local skip = function(line)
     local line = string.lower(line)
     local ret = ""
     if line:match(".+%.jpg$")    or
-       line:match(".+%.jpeg$")   or
        line:match(".+%.png$")    or
        line:match(".+%.gif$")    or
+       line:match(".+%.pdf$")    or
+       line:match(".+%.jpeg$")   or
        line:match(".+%.mp[34]$") or
        line:match(".+%.og[gv]$") then ret = "skip"
     else ret = http.request(line) end
@@ -151,6 +153,22 @@ estellefun.process = function(s, channel, lnick, line)
             msg(rel)
         end
 
+    -- We save all the links on the channel, for posterity.
+    elseif line:find("https?://") then
+        local urls = {}
+        for word in line:gmatch("%S+") do
+            if word:match("https?://[%w%p]+") then
+                urls[#urls+1] = word
+            end
+        end
+        local fh = io.open("linksdata.txt","a")
+        if fh then
+            for i=1,#urls do
+                fh:write(urls[i].."\n")
+            end
+        end
+        fh:close()
+
     -- Deliberately ignoring https.
     elseif line:find("http://") then
         local page = ""
@@ -170,10 +188,11 @@ estellefun.process = function(s, channel, lnick, line)
         elseif page == nil then
             msg("Something might've gone awry.")
         else
-            local title = page:match("<[tT][iI][tT][lL][eE]>.+</[tT][iI][tT][lL][eE]>")
+            local title = page:match("<[tT][iI][tT][lL][eE]>(.-)</[tT][iI][tT][lL][eE]>")
             -- Some necessary error handling.
             if title == nil then title = "The title was a lie."
             else title = title:gsub("<(.-)>", "") end
+            -- Youtube sometimes fails for some reason. yey.
             msg(title)
         end
         if #url > 80 then
@@ -181,6 +200,21 @@ estellefun.process = function(s, channel, lnick, line)
             local tin = http.request("http://tinyurl.com/api-create.php?url="..url)
             msg(tin)
         end
+    elseif line:find("https://") then
+        if line:find("https://[%w%p]+%s") == nil then
+            local s,e = line:find("https://[%w%p]+")
+            url = line:sub(s,e)
+        else
+            local s,e = line:find("https://[%w%p]+%s")
+            url = line:sub(s,(e-1))
+        end
+
+        if #url > 80 then
+            local tin = ""
+            local tin = http.request("http://tinyurl.com/api-create.php?url="..url)
+            if tin then msg(tin)
+        end
+    end
 
     elseif line:find("^!tinify") then
         local tinyurl = ""
@@ -219,14 +253,14 @@ estellefun.process = function(s, channel, lnick, line)
             fh:close()
             msg(stuff)
         end
-    end 
+    end
 end
 
 local rtest = function(str, testpat, message, freq)
     local freq = freq or 64 -- One eight of 512.
     local ret = ""
     if string.find(str,testpat) then
-        if math.random(512) <= freq then    -- Adjust to your needs.
+        if math.random(512) <= freq then    -- Adjust to your needs. Arbitrary value.
             ret = message
         else ret = "skip" end
     else ret = "skip" end
@@ -237,7 +271,6 @@ end
 -- Semi-dynamic sentence generation, logical structuring!
 estellefun.dospeak = function(line)
     local line = string.lower(line)
-
 
     if line:find("linux") then
         if (line:find("gnu%+linux") or line:find("gnu/linux")) == nil then
