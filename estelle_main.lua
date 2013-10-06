@@ -34,7 +34,7 @@ local line = nil
 -- For the ssl.
 local params = { 
     mode = "client",
-    protocol = "sslv3",
+    protocol = "tlsv1",
     cafile = "/etc/ssl/certs/ca-certificates.crt",
     verify = "peer",
     options = "all",
