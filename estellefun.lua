@@ -3,6 +3,9 @@
 -- its main virtue. Peruse and extend at your leisure.
 -- See notice_of_goodwill_NOG.txt for exact wording of the blessings.
 
+-- TODO meme generator. logical trees, and with a time limit:
+-- allow a new meme to be generated once in a hour or so.
+
 
 -- Our "environment".
 local socket = require("socket")
@@ -102,6 +105,22 @@ local skip = function(line)
     return ret
 end
 
+local urlsaver = function(line)
+    local urls = {}
+    for word in line:gmatch("%S+") do
+        if word:match("https?://[%w%p]+") then
+            urls[#urls+1] = word
+        end
+    end
+    local fh = io.open("linksdata.txt","a")
+    if fh then
+        for i=1,#urls do
+            fh:write(urls[i].."\n")
+        end
+    end
+    fh:close()
+end
+
 -- The main juices. Maybe a bit messy like.
 estellefun.process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
@@ -153,24 +172,9 @@ estellefun.process = function(s, channel, lnick, line)
             msg(rel)
         end
 
-    -- We save all the links on the channel, for posterity.
-    elseif line:find("https?://") then
-        local urls = {}
-        for word in line:gmatch("%S+") do
-            if word:match("https?://[%w%p]+") then
-                urls[#urls+1] = word
-            end
-        end
-        local fh = io.open("linksdata.txt","a")
-        if fh then
-            for i=1,#urls do
-                fh:write(urls[i].."\n")
-            end
-        end
-        fh:close()
-
     -- Deliberately ignoring https.
     elseif line:find("http://") then
+        urlsaver(line)
         local page = ""
         local url  = ""
 
@@ -201,6 +205,7 @@ estellefun.process = function(s, channel, lnick, line)
             msg(tin)
         end
     elseif line:find("https://") then
+        urlsaver(line)
         if line:find("https://[%w%p]+%s") == nil then
             local s,e = line:find("https://[%w%p]+")
             url = line:sub(s,e)
@@ -253,6 +258,9 @@ estellefun.process = function(s, channel, lnick, line)
             fh:close()
             msg(stuff)
         end
+
+    elseif line:find("!judge") then
+        msg("Tuomitaan Ilkkaa kaikki, minä kanssa!!")
     end
 end
 
@@ -266,6 +274,18 @@ local rtest = function(str, testpat, message, freq)
     else ret = "skip" end
     if ret == "skip" then else msg(ret) end
 end
+
+local memegen = function(line)
+    local memetbl = { "I don't always but when I do.. ",
+                      "Business cat; our company has been through some tough times.. but we'll always land on our feet.",
+                      "Ceiling cat is watching you..",
+                      "Good guy Greg..",
+                      "Philosoraptor..",
+
+                  }
+
+end
+
 
 -- So AI, right, sure. Add a lot of stuff.
 -- Semi-dynamic sentence generation, logical structuring!
