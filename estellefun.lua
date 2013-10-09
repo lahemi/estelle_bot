@@ -17,7 +17,8 @@ local string = { sub    = string.sub,
 local math = { random = math.random }
 local print = print
 
-local lapi = require("lapi")
+local lapi  = require("lapi")
+local light = require("lightbulbs")
 
 estellefun = {}
 
@@ -26,15 +27,21 @@ local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
 local silence = false
+local VERSION = "0.0.4"
 
--- A little trick for creating strings. var="stuff\ more stuff" C-stylish
--- breaking of long strings doesn't work in Lua. One option would've been
--- to use concatenation (..). That, however, is really inefficient, since
--- each concatenation call creates a new string and allocates its memory
--- and some such. This table.concat{} method is a nice way around it.
+-- Doc strings.
+local tinifyhelp  = "!tinify <url> | Print tinyurl."
+local apihelp     = "!api <func_name> | Link to corresponding Lua reference docs."
+local fortunehelp = "!fortune | Spout a short wisdom. Limited supply for the time being."
 local awkhelp = table.concat{"man awk; ","man gawk; ",
                              "http://awk.freeshell.org/; ","http://awk.info; ",
                              "http://www.gnu.org/software/gawk/manual/"}
+local bashhelp = table.concat{"man bash; ",
+                              "http://wiki.bash-hackers.org/start; ",
+                              "http://mywiki.wooledge.org/BashGuide"}
+local estellehelp = table.concat{"List of functions: ",
+                                 "!help, !tinify, !api, !fortune",
+                                 " | See !help <func_name> for more."}
 
 -- A sort of generic file reading helper
 -- function, with some "error handling".
@@ -76,15 +83,6 @@ local relpicker = function(pat)
     end
 end
 
-local bashhelp = table.concat{"man bash; ",
-                              "http://wiki.bash-hackers.org/start; ",
-                              "http://mywiki.wooledge.org/BashGuide"}
-local estellehelp = table.concat{"List of functions: ",
-                                 "!help, !tinify, !api, !fortune",
-                                 " | See !help <func_name> for more."}
-local apihelp     = "!api <func_name> | Link to corresponding Lua reference docs."
-local tinifyhelp  = "!tinify <url> | Print tinyurl."
-local fortunehelp = "!fortune | Spout a short wisdom. Limited supply for the time being."
 -- For matching a url; we don't want to waste our time with links to
 -- images and such; no html, no title -> no need to check for it.
 local skip = function(line)
@@ -97,7 +95,7 @@ local skip = function(line)
        tl:match(".+%.jpeg$")   or
        tl:match(".+%.mp[34]$") or
        tl:match(".+%.og[gv]$") then return nil
-    elseif line:find("^https") then return nil  -- Issue with http.request
+    elseif line:find("^https") then return nil -- Issue with http.request
     else ret = http.request(line) end
     return ret
 end
@@ -119,6 +117,10 @@ local urlsaver = function(line)
 end
 
 -- The main juices. Maybe a bit messy like.
+-- It would be "cleaner" to only test test lines here and
+-- then separate the functionality in different functions.
+-- However, if we do it like it is now, it avoids a lot
+-- of extra function calls.
 estellefun.process = function(s, channel, lnick, line)
     if line:find("^!exit") and lnick == overlord then os.exit() end
     if line:find("^!silence") and lnick == overlod then
@@ -131,6 +133,8 @@ estellefun.process = function(s, channel, lnick, line)
             return
         end
     end
+
+    if line:match("^!version") then msg(VERSION) end
 
     if line:find("^![hH][eE][lL][pP]") then
         local line = string.lower(line)
@@ -221,6 +225,19 @@ estellefun.process = function(s, channel, lnick, line)
         if apimsg == nil then apimsg = "No such entry." end
         msg(apimsg)
 
+    -- How many X language programmers does it take to change a lightbulb.
+    elseif line:find("^!lightbulb") then
+        local larg = string.lower(line:gsub("^!lightbulb ",""))
+        local qst,ans = "",""
+        local lightfun = function()
+                for k,v in pairs(light) do
+                    if larg == k then return v[1],v[2] end
+                end
+            end
+        local qst,ans = lightfun()
+        if quest == nil then msg("No such entry.")
+        else msg(qst) msg(ans) end
+
     -- I was feeling awkward that day.
     elseif line:find("^!fortune") then
         local fh = io.popen("./fortunes_alone.awk")
@@ -244,18 +261,6 @@ local rtest = function(str, testpat, message, freq)
     else ret = "skip" end
     if ret == "skip" then else msg(ret) end
 end
-
-local memegen = function(line)
-    local memetbl = { "I don't always but when I do.. ",
-                      "Business cat; our company has been through some tough times.. but we'll always land on our feet.",
-                      "Ceiling cat is watching you..",
-                      "Good guy Greg..",
-                      "Philosoraptor..",
-
-                  }
-
-end
-
 
 -- So AI, right, sure. Add a lot of stuff.
 -- Semi-dynamic sentence generation, logical structuring!
