@@ -30,6 +30,7 @@ local nick = ""
 local channel = ""
 local carfeed = "\r\n\r\n"
 local line = nil 
+local VERSION = "0.0.5"
 
 -- For the ssl.
 local params = { 
@@ -77,7 +78,11 @@ while true do
             end
             -- The actual functionality.
             if line then
-                estellefun.process(s, channel, lnick, line)
+                if line:find'^!%w+' then
+                    estellefun.process(s, channel, lnick, line)
+                elseif line:find'^!>' then
+                    estellefun.pseudoshell(s, channel, lnick, line)
+                end
                 if silence == false then
                     estellefun.dospeak(line)
                 end
