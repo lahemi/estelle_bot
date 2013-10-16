@@ -4,9 +4,9 @@
 -- See notice_of_goodwill_NOG.txt for exact wording of the blessings.
 
 -- Our "environment".
-local socket = require("socket")
-local http   = require("socket.http")
-local ssl    = require("ssl")   -- from LuaSec
+local socket = require'socket'
+local http   = require'socket.http'
+local ssl    = require'ssl'   -- from LuaSec
 local table  = { concat = table.concat }
 local string = { sub    = string.sub,
                  gsub   = string.gsub,
@@ -21,7 +21,7 @@ local print = print
 -- The actual functionality is in a separate file,
 -- allowing us the redefine, change and extend
 -- and then reload estelle on fly.
-local estellefun = require("estellefun")
+local estellefun = require'estellefun'
 
 -- Configuration. Fill in as your heart desires.
 local overlord = "" -- "superuser", you.
@@ -78,11 +78,9 @@ while true do
             end
             -- The actual functionality.
             if line then
-                if line:find'^!%w+' then
-                    estellefun.process(s, channel, lnick, line)
-                elseif line:find'^!>' then
+                if line:find'^!>' then
                     estellefun.pseudoshell(s, channel, lnick, line)
-                end
+                else estellefun.process(s, channel, lnick, line) end
                 if silence == false then
                     estellefun.dospeak(line)
                 end
