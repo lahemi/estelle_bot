@@ -80,7 +80,10 @@ while true do
             if line then
                 if line:find'^!>' then
                     estellefun.pseudoshell(s, channel, lnick, line)
-                else estellefun.process(s, channel, lnick, line) end
+                end
+                if line:find'^!' then
+                    estellefun.process(s, channel, lnick, line)
+                end
                 if silence == false then
                     estellefun.dospeak(line)
                 end

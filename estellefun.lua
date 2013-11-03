@@ -17,8 +17,6 @@ local string = { sub    = string.sub,
 local math  = { random = math.random }
 local print = print
 
--- Instead of reading files, we place the data in
--- Lua tables and use them as part of the code. Which is neat.
 local lapi     = require'lapi'
 local light    = require'lightbulbs'
 local awkfuncs = require'awkfuncs'
@@ -27,7 +25,7 @@ local epigrams = require'epigrams'
 
 estellefun = {}
 
-local overlord = "" -- "Superuser", you.
+local overlord = ""
 local channel  = ""
 local carfeed  = "\r\n\r\n"
 local line     = nil 
@@ -241,8 +239,15 @@ estellefun.pseudoshell = function(s, channel, lnick, line)
             if fh==nil then return end
             ret = fh:read'*a'
             fh:close()
-            if ret then msg(ret) end
+        elseif arg:find'|%s?sed' then
+            local cmd = arg:gsub('^.+|%s?sed','')
+            local arg = arg:gsub('%s?|.+$','')
+            local fh = io.popen('echo '..arg..'|sed '..cmd)
+            if fh==nil then return end
+            ret = fh:read'*a'
+            fh:close()
         end
+        if ret then msg(ret) end
     end
 end
 
