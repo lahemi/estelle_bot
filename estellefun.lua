@@ -63,6 +63,34 @@ local skip = function(line)
     return ret
 end
 
+estellefun.httpparse = function(line)
+    local tp      = "[tT][iI][tT][lL][eE]>"
+    local tinyapi = "http://tinyurl.com/api-create.php?url="
+
+    for word in line:gmatch("%S+") do
+        if word:match("https?://[%w%p]+") then
+            local page = skip(word) -- https is also skipped!
+            if page ~= nil then
+                local title = page:match(table.concat{"<",tp,"(.-)","</",tp})
+                if title then msg(title)
+                else msg("The title was a lie.")
+                end
+            end
+            if #word > 80 then
+                local tiny = ""
+                local tiny = http.request(tinyapi..word)
+                if tiny then msg(tiny) end
+            end
+            -- We save all the posted links, for posterity.
+            local fh = io.open("linksdata.txt","a")
+            if fh then
+                fh:write(word.."\n")
+                fh:close()
+            end
+        end
+    end
+end
+
 -- The main juices. Maybe a bit messy like.
 -- It would be "cleaner" to only test test lines here and
 -- then separate the functionality in different functions.
@@ -83,33 +111,6 @@ estellefun.process = function(s, channel, lnick, line)
     end
 
     if line:match("^version") then msg(VERSION)
-
-    elseif line:find("https?://") then
-        local tp      = "[tT][iI][tT][lL][eE]>"
-        local tinyapi = "http://tinyurl.com/api-create.php?url="
-
-        for word in line:gmatch("%S+") do
-            if word:match("https?://[%w%p]+") then
-                local page = skip(word) -- https is also skipped!
-                if page ~= nil then
-                    local title = page:match(table.concat{"<",tp,"(.-)","</",tp})
-                    if title then msg(title)
-                    else msg("The title was a lie.")
-                    end
-                end
-                if #word > 80 then
-                    local tiny = ""
-                    local tiny = http.request(tinyapi..word)
-                    if tiny then msg(tiny) end
-                end
-                -- We save all the posted links, for posterity.
-                local fh = io.open("linksdata.txt","a")
-                if fh then
-                    fh:write(word.."\n")
-                    fh:close()
-                end
-            end
-        end
 
     elseif line:find("^[hH][eE][lL][pP]") then
         local line = string.lower(line)
