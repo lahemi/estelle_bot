@@ -7,7 +7,9 @@
 local socket = require'socket'
 local http   = require'socket.http'
 local ssl    = require'ssl'   -- from LuaSec
-local table  = { concat = table.concat }
+local tc     = table.concat   -- Because we don't like ..
+local print  = print
+local math   = { random = math.random }
 local string = { sub    = string.sub,
                  gsub   = string.gsub,
                  find   = string.find,
@@ -15,8 +17,6 @@ local string = { sub    = string.sub,
                  upper  = string.upper,
                  match  = string.match,
                  gmatch = string.gmatch }
-local math = { random = math.random }
-local print = print
 
 -- The actual functionality is in a separate file,
 -- allowing us the redefine, change and extend
@@ -24,21 +24,21 @@ local print = print
 local estellefun = require'estellefun'
 
 -- Configuration. Fill in as your heart desires.
-local overlord = "" -- "superuser", you.
-local serv = ""
-local nick = ""
-local channel = ""
-local carfeed = "\r\n\r\n"
-local line = nil 
-local VERSION = "0.0.5"
+local overlord = '' -- 'superuser', you.
+local serv     = ''
+local nick     = ''
+local channel  = ''
+local CRLF     = '\r\n\r\n'
+local line     = nil 
+local VERSION  = '0.0.6'
 
 -- For the ssl.
 local params = { 
-    mode = "client",
-    protocol = "tlsv1",
-    cafile = "/etc/ssl/certs/ca-certificates.crt",
-    verify = "peer",
-    options = "all",
+    mode = 'client',
+    protocol = 'tlsv1',
+    cafile = '/etc/ssl/certs/ca-certificates.crt',
+    verify = 'peer',
+    options = 'all',
 }
 local s = socket.tcp()
 -- Or just s:connect(socket.dns.toip(serv),6667)
@@ -49,14 +49,20 @@ s = ssl.wrap(s,params)
 s:dohandshake()
 
 -- Initialization
-s:send("USER " .. nick .. "  " .. nick .. " " .. nick .. " :" .. nick .. carfeed)
-s:send("NICK " .. nick .. carfeed)
-s:send("JOIN " .. channel .. carfeed)
+s:send(tc{'USER ',nick,'  ',nick,' ',nick,' :',nick,CRLF})
+s:send(tc{'NICK ',nick,CRLF})
+s:send(tc{'JOIN ',channel,CRLF})
+
+-- "Print"
+wflush = function(str)
+    io.write(str..'\n')
+    io.stdout:flush()
+end
 
 -- Works for single channel bot. Elaborate further as necessary.
 msg = function(content)
-    s:send("PRIVMSG " .. channel .. " :" .. content .. carfeed)
-    print(content)  -- For logging.
+    s:send(tc{'PRIVMSG ',channel,' :',content,CRLF})
+    wflush(content)  -- For logging.
 end
 
 -- Parse input and handle pingpong. The main loop.
@@ -64,17 +70,17 @@ while true do
     local receive = s:receive('*l')
 
     -- Need to pong them to tell we're still alive.
-    if receive:find("PING :") then
-        s:send("PONG :" .. receive:sub((receive:find("PING :") + 6)) .. carfeed)
+    if receive:find'PING :' then
+        s:send('PONG :' .. receive:sub((receive:find('PING :') + 6)) .. CRLF)
     else
         -- Parse
-        if receive:find("PRIVMSG") then
-            if receive:find(channel .. " :") then
-                line = receive:sub((receive:find(channel .. " :") + (#channel) + 2))
+        if receive:find'PRIVMSG' then
+            if receive:find(channel .. ' :') then
+                line = receive:sub((receive:find(channel .. ' :') + (#channel) + 2))
             end
-            if receive:find(":") and receive:find("!") then
-                lnick = receive:sub((receive:find(":")+1),
-                                    (receive:find("!")-1))
+            if receive:find':' and receive:find'!' then
+                lnick = receive:sub((receive:find':'+1),
+                                    (receive:find'!'-1))
             end
             -- The actual functionality.
             if line then
@@ -84,17 +90,16 @@ while true do
                     estellefun.process(s, channel, lnick, line)
                 end
                 if line:find'http' then estellefun.httpparse(line) end
-                if silence == false then
-                    estellefun.dospeak(line)
-                end
-                if line:match("^!reload$") and lnick == overlord then
+                if silence==false  then estellefun.dospeak(line)   end
+                if line:match'^!reload$' and lnick == overlord then
                      package.loaded[ 'estellefun' ] = nil
-                     estellefun = require('estellefun')
+                     estellefun = require'estellefun'
                 end
             end
         end
     end
 
-    print(receive)
+    -- This way can see everything in the console.
+    wflush(receive)
 end
 
