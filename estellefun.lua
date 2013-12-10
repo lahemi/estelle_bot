@@ -17,20 +17,22 @@ local string = { sub    = string.sub,
                  gmatch = string.gmatch }
 local math   = { random = math.random }
 
-local lapi     = require'lapi'
-local light    = require'lightbulbs'
-local awkfuncs = require'awkfuncs'
-local religion = require'religion'
-local epigrams = require'epigrams'
+local lapi     = require'data/lapi'
+local light    = require'data/lightbulbs'
+local awkfuncs = require'data/awkfuncs'
+local religion = require'data/religion'
+local epigrams = require'data/epigrams'
+
+local ctbl = require'conftbl'
 
 estellefun = {}
 
-local overlord = ''
+local overlord = ctbl.overlord
 local channel  = ''
 local CRLF     = '\r\n\r\n'
 local line     = nil 
 local silence  = false
-local VERSION  = '0.0.6'
+local VERSION  = ctbl.version
 
 -- Doc strings.
 local tinifyhelp  = '!tinify <url> | Print tinyurl.'
@@ -52,6 +54,7 @@ local skip = function(word)
        tl:match'.+%.png$'    or
        tl:match'.+%.gif$'    or
        tl:match'.+%.pdf$'    or
+       tl:match'.+%.txt$'    or
        tl:match'.+%.jpeg$'   or
        tl:match'.+%.mp[34]$' or
        tl:match'.+%.og[gv]$' then return nil
@@ -61,7 +64,7 @@ local skip = function(word)
     return ret
 end
 
-estellefun.httpparse = function(line)
+estellefun.httpparse = function(line,channel)
     local ret     = nil
     local tp      = '[tT][iI][tT][lL][eE]>'
     local tinyapi = 'http://tinyurl.com/api-create.php?url='
@@ -72,7 +75,7 @@ estellefun.httpparse = function(line)
             if page ~= nil then
                 local title = page:match(tc{'<',tp,'(.-)','</',tp})
                 if title~=nil then ret = title
-                else msg'The title was a lie.' end
+                else msg('The title was a lie.',channel) end
             end
             if #word > 80 then
                 local tiny = http.request(tinyapi..word)
@@ -83,7 +86,7 @@ estellefun.httpparse = function(line)
                 end
             end
 
-            if ret~=nil then msg(ret) end
+            if ret~=nil then msg(ret,channel) end
 
             -- We save all the posted links, for posterity.
             local fh = io.open('linksdata.txt','a')
@@ -114,36 +117,36 @@ estellefun.process = function(s, channel, lnick, line)
         end
     end
 
-    if line:match('^version') then msg(VERSION)
+    if line:match('^version') then msg(VERSION,channel)
 
     elseif line:find'^[hH][eE][lL][pP]' then
         local line = line:lower()
 
         if line:match'^help$' then
-            msg(estellehelp)
+            msg(estellehelp,channel)
             return
         end
 
         local line = line:gsub('help%s+','')
 
-        if     line:match'^tinify%s-$'  then msg(tinifyhelp)
-        elseif line:match'^api%s-$'     then msg(apihelp)
-        elseif line:match'^fortune%s-$' then msg(fortunehelp)
-        elseif line:match'^awk%s-$'     then msg(lnick..': '..awkhelp)
+        if     line:match'^tinify%s-$'  then msg(tinifyhelp,channel)
+        elseif line:match'^api%s-$'     then msg(apihelp,channel)
+        elseif line:match'^fortune%s-$' then msg(fortunehelp,channel)
+        elseif line:match'^awk%s-$'     then msg(lnick..': '..awkhelp,channel)
         elseif line:match'^awk.+$' then
             local pat = line:gsub('^awk ','')
             for k,v in pairs(awkfuncs) do
                 if pat==k then
-                    msg(k..v)
+                    msg(k..v,channel)
                     return
                 end
             end
-            msg'No such entry.'
+            msg('No such entry.',channel)
 
         elseif line:match'^bash%s-$' then
-            msg(bashhelp)
+            msg(bashhelp,channel)
         else
-            msg(lnick .. ': Have you tried to RTFM? :>')
+            msg(lnick..': Have you tried to RTFM? :>',channel)
         end
 
     elseif line:find'^religion' then
@@ -156,16 +159,16 @@ estellefun.process = function(s, channel, lnick, line)
             end
         end
         if ret=='' then return
-        else msg(ret) end
+        else msg(ret,channel) end
 
     elseif line:find'^tinify' then
         local tinyurl = ''
         local tinyarg = line:gsub('^tinify ','')
         local tinyurl = http.request('http://tinyurl.com/api-create.php?url='..tinyarg)
         if tinyurl == nil then
-            msg"Something might've gone terribly wrong."
+            msg("Something might've gone terribly wrong.",channel)
         else
-            msg(tinyurl)
+            msg(tinyurl,channel)
         end
         
     -- Actually tests if the searched function exists!
@@ -183,7 +186,7 @@ estellefun.process = function(s, channel, lnick, line)
             end
         local apimsg = apifun()
         if apimsg == nil then apimsg = 'No such entry.' end
-        msg(apimsg)
+        msg(apimsg,channel)
 
     -- How many X language programmers does it take to change a lightbulb.
     elseif line:find'^lightbulb' then
@@ -195,8 +198,8 @@ estellefun.process = function(s, channel, lnick, line)
                 end
             end
         local qst,ans = lightfun()
-        if qst == nil then msg'No such entry.'
-        else msg(qst) msg(ans) end
+        if qst == nil then msg('No such entry.',channel)
+        else msg(qst,channel) msg(ans,channel) end
 
     -- Alan J. Perlis' Epigrams on Programming.
     elseif line:find'^epigrams?' then
@@ -213,17 +216,17 @@ estellefun.process = function(s, channel, lnick, line)
             end
             sent = ret -- Flips between two different.
         end
-        msg(ret)
+        msg(ret,channel)
 
     -- I was feeling awkward that day.
     elseif line:find'^fortune' then
         local fh = io.popen'./fortunes_alone.awk'
         if fh==nil then
-            msg'Sadness happened.'
+            msg('Sadness happened.',channel)
         else
             local stuff = fh:read'*a'
             fh:close()
-            msg(stuff)
+            msg(stuff,channel)
         end
     end
 end
@@ -252,7 +255,7 @@ estellefun.pseudoshell = function(s, channel, lnick, line)
             ret = fh:read'*a'
             fh:close()
         end
-        if ret then msg(ret) end
+        if ret then msg(ret,channel) end
     end
 end
 
@@ -265,7 +268,7 @@ local rtest = function(str, testpat, message, freq)
             ret = message
         else ret = 'skip' end
     else ret = 'skip' end
-    if ret == 'skip' then else msg(ret) end
+    if ret == 'skip' then else msg(ret,channel) end
 end
 
 -- So AI, right, sure. Add a lot of stuff.

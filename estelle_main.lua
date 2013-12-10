@@ -8,6 +8,7 @@ local socket = require'socket'
 local http   = require'socket.http'
 local ssl    = require'ssl'   -- from LuaSec
 local tc     = table.concat   -- Because we don't like ..
+local ipairs = ipairs
 local print  = print
 local math   = { random = math.random }
 local string = { sub    = string.sub,
@@ -18,19 +19,23 @@ local string = { sub    = string.sub,
                  match  = string.match,
                  gmatch = string.gmatch }
 
+local ctbl = require'conftbl'
+
 -- The actual functionality is in a separate file,
 -- allowing us the redefine, change and extend
 -- and then reload estelle on fly.
 local estellefun = require'estellefun'
 
--- Configuration. Fill in as your heart desires.
-local overlord = '' -- 'superuser', you.
-local serv     = ''
-local nick     = ''
+-- From separate conf file.
+local overlord = ctbl.overlord
+local nick     = ctbl.nick
+local serv     = ctbl.serv
+local channels = ctbl.channels -- a table!
 local channel  = ''
+local VERSION  = ctbl.version
+
 local CRLF     = '\r\n\r\n'
 local line     = nil 
-local VERSION  = '0.0.6'
 
 -- For the ssl.
 local params = { 
@@ -51,7 +56,10 @@ s:dohandshake()
 -- Initialization
 s:send(tc{'USER ',nick,'  ',nick,' ',nick,' :',nick,CRLF})
 s:send(tc{'NICK ',nick,CRLF})
-s:send(tc{'JOIN ',channel,CRLF})
+
+for _,ch in ipairs(channels) do
+    s:send(tc{'JOIN ',ch,CRLF})
+end
 
 -- "Print"
 wflush = function(str)
@@ -59,47 +67,47 @@ wflush = function(str)
     io.stdout:flush()
 end
 
--- Works for single channel bot. Elaborate further as necessary.
-msg = function(content)
+msg = function(content,channel)
     s:send(tc{'PRIVMSG ',channel,' :',content,CRLF})
     wflush(content)  -- For logging.
 end
 
 -- Parse input and handle pingpong. The main loop.
 while true do
-    local receive = s:receive('*l')
+    local rec = s:receive('*l')
 
     -- Need to pong them to tell we're still alive.
-    if receive:find'PING :' then
-        s:send('PONG :' .. receive:sub((receive:find('PING :') + 6)) .. CRLF)
+    if rec:find'PING :' then
+        s:send('PONG :'..rec:sub((rec:find('PING :') + 6))..CRLF)
     else
         -- Parse
-        if receive:find'PRIVMSG' then
-            if receive:find(channel .. ' :') then
-                line = receive:sub((receive:find(channel .. ' :') + (#channel) + 2))
+        if rec:find'PRIVMSG' then
+            channel = rec:match'PRIVMSG (.+) :'
+            if rec:find(channel..' :') then
+                line = rec:sub((rec:find(channel..' :') + (#channel) + 2))
             end
-            if receive:find':' and receive:find'!' then
-                lnick = receive:sub((receive:find':'+1),
-                                    (receive:find'!'-1))
+            if rec:find':' and rec:find'!' then
+                lnick = rec:sub((rec:find':'+1), (rec:find'!'-1))
             end
             -- The actual functionality.
-            if line then
+            if line~=nil then
                 if line:find'^!>' then
                     estellefun.pseudoshell(s, channel, lnick, line)
                 elseif line:find'^!' then
                     estellefun.process(s, channel, lnick, line)
                 end
-                if line:find'http' then estellefun.httpparse(line) end
-                if silence==false  then estellefun.dospeak(line)   end
+                if line:find'http' then estellefun.httpparse(line,channel) end
+                if silence==false  then estellefun.dospeak(line,channel)   end
                 if line:match'^!reload$' and lnick == overlord then
-                     package.loaded[ 'estellefun' ] = nil
+                     package.loaded['estellefun'] = nil
                      estellefun = require'estellefun'
                 end
             end
         end
     end
 
-    -- This way can see everything in the console.
-    wflush(receive)
+    -- This way can see everything in the console. Mixes up the channels,
+    -- though you can do some parsing there if you wish.
+    wflush(rec)
 end
 
